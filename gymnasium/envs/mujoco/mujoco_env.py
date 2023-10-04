@@ -27,7 +27,7 @@ else:
 DEFAULT_SIZE = 480
 
 
-class BaseMujocoEnv(gym.Env[np.float64, np.float32]):
+class BaseMujocoEnv(gym.Env[NDArray[np.float64], NDArray[np.float32]]):
     """Superclass for all MuJoCo environments."""
 
     def __init__(
@@ -101,6 +101,10 @@ class BaseMujocoEnv(gym.Env[np.float64, np.float32]):
 
     # methods to override:
     # ----------------------------
+    def step(
+        self, action: NDArray[np.float32]
+    ) -> Tuple[NDArray[np.float64], np.float64, bool, bool, Dict[str, np.float64]]:
+        raise NotImplementedError
 
     def reset_model(self) -> NDArray[np.float64]:
         """
@@ -211,7 +215,7 @@ class MuJocoPyEnv(BaseMujocoEnv):
         logger.deprecation(
             "This version of the mujoco environments depends "
             "on the mujoco-py bindings, which are no longer maintained "
-            "and may stop working. Please upgrade to the v4 versions of "
+            "and may stop working. Please upgrade to the v5 or v4 versions of "
             "the environments (which depend on the mujoco python bindings instead), unless "
             "you are trying to precisely replicate previous works)."
         )
@@ -349,7 +353,7 @@ class MujocoEnv(BaseMujocoEnv):
         height: int = DEFAULT_SIZE,
         camera_id: Optional[int] = None,
         camera_name: Optional[str] = None,
-        default_camera_config: Optional[dict] = None,
+        default_camera_config: Optional[Dict[str, Union[float, int]]] = None,
     ):
         if MUJOCO_IMPORT_ERROR is not None:
             raise error.DependencyNotInstalled(
@@ -371,12 +375,12 @@ class MujocoEnv(BaseMujocoEnv):
         from gymnasium.envs.mujoco.mujoco_rendering import MujocoRenderer
 
         self.mujoco_renderer = MujocoRenderer(
-            self.model, self.data, default_camera_config
+            self.model, self.data, default_camera_config, self.width, self.height
         )
 
     def _initialize_simulation(
         self,
-    ):
+    ) -> Tuple["mujoco._structs.MjModel", "mujoco._structs.MjData"]:
         model = mujoco.MjModel.from_xml_path(self.fullpath)
         # MjrContext will copy model.vis.global_.off* to con.off*
         model.vis.global_.offwidth = self.width
